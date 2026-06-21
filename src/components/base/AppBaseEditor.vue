@@ -1,5 +1,5 @@
 <script lang="ts" setup>
-import { computed, onMounted, ref, useTemplateRef } from "vue";
+import { computed, onMounted, ref, useTemplateRef, watch } from "vue";
 import Squire from "squire-rte";
 import IconBold from "../icon/IconBold.vue";
 import IconItalic from "../icon/IconItalic.vue";
@@ -16,10 +16,35 @@ export interface AppBaseEditorProps {
 }
 const props = defineProps<AppBaseEditorProps>();
 
+const model = defineModel<string>({ default: "" });
+
 const editor = ref<Squire | null>(null);
 const editorElement = useTemplateRef<HTMLElement>("editor");
 
 const isEmpty = ref(true);
+let isSyncingFromModel = false;
+
+function getEditorHTML(): string {
+  if (!editor.value) return "";
+  const html = editor.value.getHTML();
+  const plain = (editorElement.value?.textContent ?? "").trim();
+  return plain === "" ? "" : html;
+}
+
+function syncModelToEditor(value: string) {
+  if (!editor.value) return;
+  if (value === getEditorHTML()) return;
+  isSyncingFromModel = true;
+  editor.value.setHTML(value ?? "");
+  updateEmptyState();
+  isSyncingFromModel = false;
+}
+
+function onEditorInput() {
+  updateEmptyState();
+  if (isSyncingFromModel) return;
+  model.value = getEditorHTML();
+}
 const isBold = ref(false);
 const isItalic = ref(false);
 const isUnderline = ref(false);
@@ -76,9 +101,21 @@ onMounted(() => {
   });
   editor.value.addEventListener("pathChange", updateFormatState);
   editor.value.addEventListener("select", updateFormatState);
-  editor.value.addEventListener("input", updateEmptyState);
-  updateEmptyState();
+  editor.value.addEventListener("input", onEditorInput);
+
+  if (model.value) {
+    syncModelToEditor(model.value);
+  } else {
+    updateEmptyState();
+  }
 });
+
+watch(
+  () => model.value,
+  (newValue) => {
+    syncModelToEditor(newValue ?? "");
+  },
+);
 
 function actionBold() {
   if (!editor.value) return;

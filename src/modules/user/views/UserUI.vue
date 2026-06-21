@@ -7,22 +7,79 @@ import AppCommonFormGroup from "@/components/common/AppCommonFormGroup.vue";
 import UserSkillFormDialog from "@/modules/user/components/UserSkillFormDialog.vue";
 import UserEducationFormDialog from "@/modules/user/components/UserEducationFormDialog.vue";
 import UserEmploymentHistoryFormDialog from "@/modules/user/components/UserEmploymentHistoryFormDialog.vue";
-import { ref } from "vue";
-import type { Skill } from "@/shared/types/skillLevel.enum";
-import type { Education } from "@/shared/types/education.type";
-import type { EmploymentHistory } from "@/shared/types/employmentHistory.type";
 import AppBaseButton from "@/components/base/AppBaseButton.vue";
+import UserSkeleton from "@/modules/user/components/UserSkeleton.vue";
+import { useUserForm } from "@/modules/user/composables/useUserForm";
+import { useUserListApi } from "../composables/useUserListApi";
+import { useUserCreateApi } from "../composables/useUserCreateApi";
+import { useUserUpdateApi } from "../composables/useUserUpdateApi";
+import { useSwitch } from "@/shared/composables/useSwitch";
+import { useToast } from "primevue/usetoast";
+import { onBeforeMount } from "vue";
+import { useProfileDownloadApi } from "@/modules/profile/composables/useProfileDownloadApi";
+import { useProfileUploadApi } from "@/modules/profile/composables/useProfileUploadApi";
 
-const file = ref<File | undefined>();
-const dateOfBirth = ref<Date | null>(null);
+const { state: loading, open: showLoading, close: hideLoading } = useSwitch();
+const toast = useToast();
+const { form, setForm, errorOf, v$, getFormWithPayloadFormat, setPhoto } =
+  useUserForm();
+const { currentUserId, fetchList, photoUrl } = useUserListApi(setForm);
+const { create, loading: createLoading } = useUserCreateApi(setForm);
+const { update, loading: updateLoading } = useUserUpdateApi(setForm);
+const { download, loading: downloadLoading } = useProfileDownloadApi(setPhoto);
+const { upload, loading: uploadLoading } = useProfileUploadApi();
 
-const employmentHistories = ref<EmploymentHistory[]>([]);
-const educations = ref<Education[]>([]);
-const skills = ref<Skill[]>([]);
+async function submitForm() {
+  v$.value.$touch();
+  if (v$.value.$invalid) return;
+
+  let photoUrl: string | null = null;
+  if (form.file) {
+    photoUrl = await upload(form.file);
+  }
+
+  if (currentUserId.value) {
+    await update(currentUserId.value, {
+      ...getFormWithPayloadFormat(),
+      ...(photoUrl ? { photoUrl } : {}),
+    });
+  } else {
+    await create({
+      ...getFormWithPayloadFormat(),
+      ...(photoUrl ? { photoUrl } : {}),
+    });
+  }
+}
+
+onBeforeMount(async () => {
+  try {
+    showLoading();
+
+    await fetchList();
+    if (photoUrl.value) {
+      await download(photoUrl.value);
+    }
+  } catch (error: any) {
+    toast.add({
+      severity: "error",
+      summary: "Failed to Update User",
+      detail:
+        error?.response?.data?.message ??
+        error?.message ??
+        "Something went wrong.",
+      life: 4000,
+    });
+
+    return null;
+  } finally {
+    hideLoading();
+  }
+});
 </script>
 
 <template>
-  <div class="px-10 py-12 space-y-5">
+  <UserSkeleton v-if="loading || downloadLoading" />
+  <div v-else class="px-10 py-12 space-y-5">
     <h4 class="font-bold text-app-black text-2xl">Personal Details</h4>
 
     <section class="grid grid-cols-1 md:grid-cols-2 gap-5 items-end">
@@ -31,55 +88,120 @@ const skills = ref<Skill[]>([]);
         v-slot="attrs"
         label="Wanted Job Title"
         tooltip="The job title you are seeking, e.g. 'Frontend Developer' or 'Product Manager'"
+        :error-message="errorOf('title')"
       >
         <AppBaseInputText
           v-bind="attrs"
+          v-model="form.title"
           placeholder="e.g. Frontend Developer"
         />
       </AppCommonFormGroup>
 
       <AppCommonFormGroup id="photo" v-slot="attrs">
-        <AppBaseInputPhoto id="photo" v-bind="attrs" v-model="file" />
+        <AppBaseInputPhoto id="photo" v-bind="attrs" v-model="form.file" />
       </AppCommonFormGroup>
 
-      <AppCommonFormGroup id="first-name" v-slot="attrs" label="First Name">
-        <AppBaseInputText v-bind="attrs" placeholder="e.g. John" />
-      </AppCommonFormGroup>
-
-      <AppCommonFormGroup id="last-name" v-slot="attrs" label="Last Name">
-        <AppBaseInputText v-bind="attrs" placeholder="e.g. Doe" />
-      </AppCommonFormGroup>
-
-      <AppCommonFormGroup id="email" v-slot="attrs" label="Email">
-        <AppBaseInputText v-bind="attrs" placeholder="e.g. john@example.com" />
-      </AppCommonFormGroup>
-
-      <AppCommonFormGroup id="phone" v-slot="attrs" label="Phone">
+      <AppCommonFormGroup
+        id="first-name"
+        v-slot="attrs"
+        label="First Name"
+        :error-message="errorOf('firstName')"
+      >
         <AppBaseInputText
           v-bind="attrs"
+          v-model="form.firstName"
+          placeholder="e.g. John"
+        />
+      </AppCommonFormGroup>
+
+      <AppCommonFormGroup
+        id="last-name"
+        v-slot="attrs"
+        label="Last Name"
+        :error-message="errorOf('lastName')"
+      >
+        <AppBaseInputText
+          v-bind="attrs"
+          v-model="form.lastName"
+          placeholder="e.g. Doe"
+        />
+      </AppCommonFormGroup>
+
+      <AppCommonFormGroup
+        id="email"
+        v-slot="attrs"
+        label="Email"
+        :error-message="errorOf('email')"
+      >
+        <AppBaseInputText
+          v-bind="attrs"
+          v-model="form.email"
+          placeholder="e.g. john@example.com"
+        />
+      </AppCommonFormGroup>
+
+      <AppCommonFormGroup
+        id="phone"
+        v-slot="attrs"
+        label="Phone"
+        :error-message="errorOf('phone')"
+      >
+        <AppBaseInputText
+          v-bind="attrs"
+          v-model="form.phone"
           type="NUMBER"
           placeholder="e.g. 08123456789"
         />
       </AppCommonFormGroup>
 
-      <AppCommonFormGroup id="country" v-slot="attrs" label="Country">
-        <AppBaseInputText v-bind="attrs" placeholder="e.g. Indonesia" />
-      </AppCommonFormGroup>
-
-      <AppCommonFormGroup id="city" v-slot="attrs" label="City">
-        <AppBaseInputText v-bind="attrs" placeholder="e.g. Jakarta" />
-      </AppCommonFormGroup>
-
-      <AppCommonFormGroup id="address" v-slot="attrs" label="Address">
+      <AppCommonFormGroup
+        id="country"
+        v-slot="attrs"
+        label="Country"
+        :error-message="errorOf('country')"
+      >
         <AppBaseInputText
           v-bind="attrs"
+          v-model="form.country"
+          placeholder="e.g. Indonesia"
+        />
+      </AppCommonFormGroup>
+
+      <AppCommonFormGroup
+        id="city"
+        v-slot="attrs"
+        label="City"
+        :error-message="errorOf('city')"
+      >
+        <AppBaseInputText
+          v-bind="attrs"
+          v-model="form.city"
+          placeholder="e.g. Jakarta"
+        />
+      </AppCommonFormGroup>
+
+      <AppCommonFormGroup
+        id="address"
+        v-slot="attrs"
+        label="Address"
+        :error-message="errorOf('address')"
+      >
+        <AppBaseInputText
+          v-bind="attrs"
+          v-model="form.address"
           placeholder="e.g. Jl. Merdeka No. 123"
         />
       </AppCommonFormGroup>
 
-      <AppCommonFormGroup id="postal-code" v-slot="attrs" label="Postal Code">
+      <AppCommonFormGroup
+        id="postal-code"
+        v-slot="attrs"
+        label="Postal Code"
+        :error-message="errorOf('postalCode')"
+      >
         <AppBaseInputText
           v-bind="attrs"
+          v-model="form.postalCode"
           type="NUMBER"
           :max-length="5"
           placeholder="e.g. 12345"
@@ -91,8 +213,13 @@ const skills = ref<Skill[]>([]);
         v-slot="attrs"
         label="Driver License"
         tooltip="Enter your driving license category, e.g. 'A' for motorcycle or 'B' for car"
+        :error-message="errorOf('drivingLicense')"
       >
-        <AppBaseInputText v-bind="attrs" placeholder="e.g. A1" />
+        <AppBaseInputText
+          v-bind="attrs"
+          v-model="form.drivingLicense"
+          placeholder="e.g. A1"
+        />
       </AppCommonFormGroup>
 
       <AppCommonFormGroup
@@ -100,8 +227,13 @@ const skills = ref<Skill[]>([]);
         v-slot="attrs"
         label="Nationality"
         tooltip="Enter your nationality as it appears on your passport or national ID"
+        :error-message="errorOf('nationality')"
       >
-        <AppBaseInputText v-bind="attrs" placeholder="e.g. Indonesian" />
+        <AppBaseInputText
+          v-bind="attrs"
+          v-model="form.nationality"
+          placeholder="e.g. Indonesian"
+        />
       </AppCommonFormGroup>
 
       <AppCommonFormGroup
@@ -109,9 +241,11 @@ const skills = ref<Skill[]>([]);
         v-slot="attrs"
         label="Place Of Birth"
         tooltip="Enter the city or region where you were born, e.g. 'Jakarta, Indonesia'"
+        :error-message="errorOf('placeOfBirth')"
       >
         <AppBaseInputText
           v-bind="attrs"
+          v-model="form.placeOfBirth"
           placeholder="e.g. Jakarta, Indonesia"
         />
       </AppCommonFormGroup>
@@ -121,9 +255,10 @@ const skills = ref<Skill[]>([]);
         v-slot="attrs"
         label="Date Of Birth"
         tooltip="Enter your date of birth as it appears on your official ID document"
+        :error-message="errorOf('dateOfBirth')"
       >
         <AppBaseInputDate
-          v-model="dateOfBirth"
+          v-model="form.dateOfBirth"
           v-bind="attrs"
           placeholder="DD/MM/YYYY"
           :max-date="new Date()"
@@ -134,6 +269,7 @@ const skills = ref<Skill[]>([]);
         id="professional-summary"
         v-slot="attrs"
         class="col-span-2"
+        :error-message="errorOf('professionalSummary')"
       >
         <header class="flex flex-col space-y-1">
           <h5 class="font-bold text-xl text-app-black">Professional Summary</h5>
@@ -146,6 +282,7 @@ const skills = ref<Skill[]>([]);
 
         <AppBaseEditor
           v-bind="attrs"
+          v-model="form.professionalSummary"
           placeholder="e.g. Passionate science teacher with 8+ years of experience and a track record of ..."
         />
       </AppCommonFormGroup>
@@ -154,6 +291,7 @@ const skills = ref<Skill[]>([]);
         id="employment-history"
         v-slot="attrs"
         class="col-span-2"
+        :error-message="errorOf('employmentHistories')"
       >
         <header class="flex flex-col space-y-1">
           <h5 class="font-bold text-xl text-app-black">Employment History</h5>
@@ -166,12 +304,17 @@ const skills = ref<Skill[]>([]);
 
         <UserEmploymentHistoryFormDialog
           v-bind="attrs"
-          v-model="employmentHistories"
+          v-model="form.employmentHistories"
           label="Add Employment"
         />
       </AppCommonFormGroup>
 
-      <AppCommonFormGroup id="education" v-slot="attrs" class="col-span-2">
+      <AppCommonFormGroup
+        id="education"
+        v-slot="attrs"
+        class="col-span-2"
+        :error-message="errorOf('educations')"
+      >
         <header class="flex flex-col space-y-1">
           <h5 class="font-bold text-xl text-app-black">Education</h5>
           <p class="text-app-label">
@@ -182,12 +325,17 @@ const skills = ref<Skill[]>([]);
 
         <UserEducationFormDialog
           v-bind="attrs"
-          v-model="educations"
+          v-model="form.educations"
           label="Add Education"
         />
       </AppCommonFormGroup>
 
-      <AppCommonFormGroup id="skill" v-slot="attrs" class="col-span-2">
+      <AppCommonFormGroup
+        id="skill"
+        v-slot="attrs"
+        class="col-span-2"
+        :error-message="errorOf('skills')"
+      >
         <header class="flex flex-col space-y-1">
           <h5 class="font-bold text-xl text-app-black">Skills</h5>
           <p class="text-app-label">
@@ -199,12 +347,17 @@ const skills = ref<Skill[]>([]);
 
         <UserSkillFormDialog
           v-bind="attrs"
-          v-model="skills"
+          v-model="form.skills"
           label="Add Skill"
         />
       </AppCommonFormGroup>
     </section>
 
-    <AppBaseButton label="Submit" class="w-full mt-10" />
+    <AppBaseButton
+      :label="currentUserId ? 'Save Change' : 'Submit'"
+      class="w-full mt-10"
+      :loading="updateLoading || createLoading || uploadLoading"
+      @click="submitForm"
+    />
   </div>
 </template>
