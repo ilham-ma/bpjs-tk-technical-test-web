@@ -1,5 +1,6 @@
 <script lang="ts" setup>
 import { computed, useTemplateRef } from "vue";
+import { useToast } from "primevue/usetoast";
 
 export interface AppBaseInputPhotoProps {
   id: string;
@@ -8,8 +9,11 @@ export interface AppBaseInputPhotoProps {
 const props = defineProps<AppBaseInputPhotoProps>();
 
 const input = useTemplateRef<HTMLInputElement>("input");
+const toast = useToast();
 
 const model = defineModel<File | undefined>();
+
+const MAX_SIZE_BYTES = 2 * 1024 * 1024;
 
 function clickUpload() {
   input.value?.click();
@@ -19,10 +23,22 @@ function changeInput(ev: Event) {
   const target = ev.target as HTMLInputElement;
   const files = target.files;
 
-  if (files?.length) {
-    const file = files[0];
-    model.value = file;
+  if (!files?.length) return;
+
+  const file = files[0];
+
+  if (file.size > MAX_SIZE_BYTES) {
+    toast.add({
+      severity: "error",
+      summary: "File Too Large",
+      detail: "Photo must not exceed 2MB. Please choose a smaller file.",
+      life: 4000,
+    });
+    target.value = "";
+    return;
   }
+
+  model.value = file;
 }
 
 const previewUrl = computed<string>(() => {

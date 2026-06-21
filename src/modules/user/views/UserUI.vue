@@ -3,14 +3,22 @@ import AppBaseEditor from "@/components/base/AppBaseEditor.vue";
 import AppBaseInputDate from "@/components/base/AppBaseInputDate.vue";
 import AppBaseInputPhoto from "@/components/base/AppBaseInputPhoto.vue";
 import AppBaseInputText from "@/components/base/AppBaseInputText.vue";
-import AppCommonChipInputDialog from "@/components/common/AppCommonChipInputDialog.vue";
 import AppCommonFormGroup from "@/components/common/AppCommonFormGroup.vue";
+import UserSkillFormDialog from "@/modules/user/components/UserSkillFormDialog.vue";
+import UserEducationFormDialog from "@/modules/user/components/UserEducationFormDialog.vue";
+import UserEmploymentHistoryFormDialog from "@/modules/user/components/UserEmploymentHistoryFormDialog.vue";
 import { ref } from "vue";
+import type { Skill } from "@/shared/types/skillLevel.enum";
+import type { Education } from "@/shared/types/education.type";
+import type { EmploymentHistory } from "@/shared/types/employmentHistory.type";
+import AppBaseButton from "@/components/base/AppBaseButton.vue";
 
 const file = ref<File | undefined>();
 const dateOfBirth = ref<Date | null>(null);
 
-const employments = ref<string[]>([]);
+const employmentHistories = ref<EmploymentHistory[]>([]);
+const educations = ref<Education[]>([]);
+const skills = ref<Skill[]>([]);
 </script>
 
 <template>
@@ -22,9 +30,12 @@ const employments = ref<string[]>([]);
         id="title"
         v-slot="attrs"
         label="Wanted Job Title"
-        tooltip="hello world"
+        tooltip="The job title you are seeking, e.g. 'Frontend Developer' or 'Product Manager'"
       >
-        <AppBaseInputText v-bind="attrs" />
+        <AppBaseInputText
+          v-bind="attrs"
+          placeholder="e.g. Frontend Developer"
+        />
       </AppCommonFormGroup>
 
       <AppCommonFormGroup id="photo" v-slot="attrs">
@@ -32,69 +43,84 @@ const employments = ref<string[]>([]);
       </AppCommonFormGroup>
 
       <AppCommonFormGroup id="first-name" v-slot="attrs" label="First Name">
-        <AppBaseInputText v-bind="attrs" />
+        <AppBaseInputText v-bind="attrs" placeholder="e.g. John" />
       </AppCommonFormGroup>
 
       <AppCommonFormGroup id="last-name" v-slot="attrs" label="Last Name">
-        <AppBaseInputText v-bind="attrs" />
+        <AppBaseInputText v-bind="attrs" placeholder="e.g. Doe" />
       </AppCommonFormGroup>
 
       <AppCommonFormGroup id="email" v-slot="attrs" label="Email">
-        <AppBaseInputText v-bind="attrs" />
+        <AppBaseInputText v-bind="attrs" placeholder="e.g. john@example.com" />
       </AppCommonFormGroup>
 
       <AppCommonFormGroup id="phone" v-slot="attrs" label="Phone">
-        <AppBaseInputText v-bind="attrs" type="NUMBER" />
+        <AppBaseInputText
+          v-bind="attrs"
+          type="NUMBER"
+          placeholder="e.g. 08123456789"
+        />
       </AppCommonFormGroup>
 
       <AppCommonFormGroup id="country" v-slot="attrs" label="Country">
-        <AppBaseInputText v-bind="attrs" />
+        <AppBaseInputText v-bind="attrs" placeholder="e.g. Indonesia" />
       </AppCommonFormGroup>
 
       <AppCommonFormGroup id="city" v-slot="attrs" label="City">
-        <AppBaseInputText v-bind="attrs" />
+        <AppBaseInputText v-bind="attrs" placeholder="e.g. Jakarta" />
       </AppCommonFormGroup>
 
       <AppCommonFormGroup id="address" v-slot="attrs" label="Address">
-        <AppBaseInputText v-bind="attrs" />
+        <AppBaseInputText
+          v-bind="attrs"
+          placeholder="e.g. Jl. Merdeka No. 123"
+        />
       </AppCommonFormGroup>
 
       <AppCommonFormGroup id="postal-code" v-slot="attrs" label="Postal Code">
-        <AppBaseInputText v-bind="attrs" type="NUMBER" :max-length="5" />
+        <AppBaseInputText
+          v-bind="attrs"
+          type="NUMBER"
+          :max-length="5"
+          placeholder="e.g. 12345"
+        />
       </AppCommonFormGroup>
 
       <AppCommonFormGroup
         id="driving-license"
         v-slot="attrs"
         label="Driver License"
-        tooltip="hello world"
+        tooltip="Enter your driving license category, e.g. 'A' for motorcycle or 'B' for car"
       >
-        <AppBaseInputText v-bind="attrs" />
+        <AppBaseInputText v-bind="attrs" placeholder="e.g. A1" />
       </AppCommonFormGroup>
 
       <AppCommonFormGroup
         id="nationality"
         v-slot="attrs"
         label="Nationality"
-        tooltip="hello world"
+        tooltip="Enter your nationality as it appears on your passport or national ID"
       >
-        <AppBaseInputText v-bind="attrs" />
+        <AppBaseInputText v-bind="attrs" placeholder="e.g. Indonesian" />
       </AppCommonFormGroup>
 
       <AppCommonFormGroup
         id="place-of-birth"
         v-slot="attrs"
         label="Place Of Birth"
-        tooltip="hello world"
+        tooltip="Enter the city or region where you were born, e.g. 'Jakarta, Indonesia'"
       >
-        <AppBaseInputText v-bind="attrs" />
+        <AppBaseInputText
+          v-bind="attrs"
+          placeholder="e.g. Jakarta, Indonesia"
+        />
       </AppCommonFormGroup>
 
       <AppCommonFormGroup
         id="date-of-birth"
         v-slot="attrs"
         label="Date Of Birth"
-        tooltip="hello world"
+        tooltip="Enter your date of birth as it appears on your official ID document"
       >
         <AppBaseInputDate
           v-model="dateOfBirth"
@@ -138,11 +164,10 @@ const employments = ref<string[]>([]);
           </p>
         </header>
 
-        <AppCommonChipInputDialog
+        <UserEmploymentHistoryFormDialog
           v-bind="attrs"
-          v-model="employments"
+          v-model="employmentHistories"
           label="Add Employment"
-          :options="[]"
         />
       </AppCommonFormGroup>
 
@@ -155,11 +180,10 @@ const employments = ref<string[]>([]);
           </p>
         </header>
 
-        <AppCommonChipInputDialog
+        <UserEducationFormDialog
           v-bind="attrs"
-          v-model="employments"
-          label="Add Employment"
-          :options="[]"
+          v-model="educations"
+          label="Add Education"
         />
       </AppCommonFormGroup>
 
@@ -173,13 +197,14 @@ const employments = ref<string[]>([]);
           </p>
         </header>
 
-        <AppCommonChipInputDialog
+        <UserSkillFormDialog
           v-bind="attrs"
-          v-model="employments"
-          label="Add Employment"
-          :options="[]"
+          v-model="skills"
+          label="Add Skill"
         />
       </AppCommonFormGroup>
     </section>
+
+    <AppBaseButton label="Submit" class="w-full mt-10" />
   </div>
 </template>
