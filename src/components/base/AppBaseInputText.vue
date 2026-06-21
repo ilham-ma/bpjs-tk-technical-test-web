@@ -6,9 +6,11 @@ export interface AppBaseInputTextProps {
   isError?: boolean;
   type?: AppBaseInputTextType;
   maxLength?: number;
+  placeholder?: string;
 }
 const props = withDefaults(defineProps<AppBaseInputTextProps>(), {
   type: "TEXT",
+  placeholder: "",
 });
 
 const model = defineModel<string | undefined>({ default: "" });
@@ -48,6 +50,7 @@ watch(model, (val) => {
   <input
     v-model="model"
     type="text"
+    :placeholder="props.placeholder"
     :maxlength="effectiveMaxLength"
     class="outline-none p-3 rounded"
     :class="[

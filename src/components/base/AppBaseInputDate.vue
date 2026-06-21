@@ -1,6 +1,8 @@
 <script lang="ts" setup>
 import { computed, onBeforeUnmount, onMounted, ref, useTemplateRef } from "vue";
 
+defineOptions({ inheritAttrs: false });
+
 export interface AppBaseInputDateProps {
   isError?: boolean;
   placeholder?: string;
@@ -251,6 +253,7 @@ onBeforeUnmount(() => {
   <div ref="wrapper">
     <input
       ref="trigger"
+      v-bind="$attrs"
       type="text"
       readonly
       :value="displayLabel"

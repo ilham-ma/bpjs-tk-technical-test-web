@@ -16,6 +16,7 @@ export interface AppBaseInputOptionProps {
   placeholder?: string;
   filter?: boolean;
   disabled?: boolean;
+  isError?: boolean;
 }
 
 const props = withDefaults(defineProps<AppBaseInputOptionProps>(), {
@@ -132,10 +133,19 @@ onBeforeUnmount(() => {
       ref="trigger"
       type="button"
       :disabled="props.disabled"
-      class="flex items-center justify-between w-full px-3 py-2 bg-white border border-gray-300 rounded cursor-pointer text-left disabled:opacity-50 disabled:cursor-not-allowed"
+      class="flex items-center justify-between w-full p-3 rounded cursor-pointer text-left outline-none disabled:opacity-50 disabled:cursor-not-allowed"
+      :class="props.isError ? 'bg-red-100' : 'bg-app-field-backgroud'"
       @click="toggleOpen"
     >
-      <span :class="displayLabel ? 'text-gray-900' : 'text-gray-400'">
+      <span
+        :class="[
+          displayLabel
+            ? props.isError
+              ? 'text-red-500'
+              : 'text-app-black'
+            : 'text-gray-400',
+        ]"
+      >
         {{ displayLabel || props.placeholder }}
       </span>
       <svg
@@ -173,7 +183,7 @@ onBeforeUnmount(() => {
           <li
             v-for="option in props.options"
             :key="option.value"
-            class="px-3 py-2 cursor-pointer hover:bg-gray-100"
+            class="px-3 py-2 cursor-pointer text-app-black hover:bg-gray-100"
             :class="{ 'bg-blue-50 text-app-blue': isSelected(option) }"
             @click="selectOption(option)"
           >

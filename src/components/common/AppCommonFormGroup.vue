@@ -20,12 +20,13 @@ const isError = computed(() => !!props.errorMessage);
     <span v-if="props.label" class="flex gap-2 items-center">
       <AppBaseLabel :for="props.id" :label="props.label" />
 
-      <IconHelp
-        v-tooltip="{
-          value: props.tooltip,
-        }"
-        color="#458fe9"
-      />
+      <span
+        v-if="props.tooltip"
+        v-tooltip="{ value: props.tooltip }"
+        class="cursor-help"
+      >
+        <IconHelp color="#458fe9" />
+      </span>
     </span>
 
     <slot isError></slot>
