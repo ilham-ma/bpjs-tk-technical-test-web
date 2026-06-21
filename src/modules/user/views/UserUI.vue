@@ -8,13 +8,78 @@ import UserSkillFormDialog from "@/modules/user/components/UserSkillFormDialog.v
 import UserEducationFormDialog from "@/modules/user/components/UserEducationFormDialog.vue";
 import UserEmploymentHistoryFormDialog from "@/modules/user/components/UserEmploymentHistoryFormDialog.vue";
 import AppBaseButton from "@/components/base/AppBaseButton.vue";
+import UserSkeleton from "@/modules/user/components/UserSkeleton.vue";
 import { useUserForm } from "@/modules/user/composables/useUserForm";
+import { useUserListApi } from "../composables/useUserListApi";
+import { useUserCreateApi } from "../composables/useUserCreateApi";
+import { useUserUpdateApi } from "../composables/useUserUpdateApi";
+import { useSwitch } from "@/shared/composables/useSwitch";
+import { useToast } from "primevue/usetoast";
+import { onBeforeMount } from "vue";
+import { useProfileDownloadApi } from "@/modules/profile/composables/useProfileDownloadApi";
+import { useProfileUploadApi } from "@/modules/profile/composables/useProfileUploadApi";
 
-const { form, submit, errorOf } = useUserForm();
+const { state: loading, open: showLoading, close: hideLoading } = useSwitch();
+const toast = useToast();
+const { form, setForm, errorOf, v$, getFormWithPayloadFormat, setPhoto } =
+  useUserForm();
+const { currentUserId, fetchList, photoUrl } = useUserListApi(setForm);
+const { create, loading: createLoading } = useUserCreateApi(setForm);
+const { update, loading: updateLoading } = useUserUpdateApi(setForm);
+const { download, loading: downloadLoading } = useProfileDownloadApi(setPhoto);
+const { upload, loading: uploadLoading } = useProfileUploadApi();
+
+async function submitForm() {
+  v$.value.$touch();
+  if (v$.value.$invalid) return;
+
+  let photoUrl: string | null = null;
+  if (form.file) {
+    photoUrl = await upload(form.file);
+  }
+
+  if (currentUserId.value) {
+    await update(currentUserId.value, {
+      ...getFormWithPayloadFormat(),
+      ...(photoUrl ? { photoUrl } : {}),
+    });
+  } else {
+    await create({
+      ...getFormWithPayloadFormat(),
+      ...(photoUrl ? { photoUrl } : {}),
+    });
+  }
+}
+
+onBeforeMount(async () => {
+  try {
+    showLoading();
+
+    await fetchList();
+    if (photoUrl.value) {
+      await download(photoUrl.value);
+    }
+  } catch (error: any) {
+    toast.add({
+      severity: "error",
+      summary: "Failed to Update User",
+      detail:
+        error?.response?.data?.message ??
+        error?.message ??
+        "Something went wrong.",
+      life: 4000,
+    });
+
+    return null;
+  } finally {
+    hideLoading();
+  }
+});
 </script>
 
 <template>
-  <div class="px-10 py-12 space-y-5">
+  <UserSkeleton v-if="loading || downloadLoading" />
+  <div v-else class="px-10 py-12 space-y-5">
     <h4 class="font-bold text-app-black text-2xl">Personal Details</h4>
 
     <section class="grid grid-cols-1 md:grid-cols-2 gap-5 items-end">
@@ -288,6 +353,11 @@ const { form, submit, errorOf } = useUserForm();
       </AppCommonFormGroup>
     </section>
 
-    <AppBaseButton label="Submit" class="w-full mt-10" @click="submit" />
+    <AppBaseButton
+      :label="currentUserId ? 'Save Change' : 'Submit'"
+      class="w-full mt-10"
+      :loading="updateLoading || createLoading || uploadLoading"
+      @click="submitForm"
+    />
   </div>
 </template>

@@ -1,13 +1,14 @@
 import { http } from "@/plugins/axios.plugin";
 import type { ApiResponse } from "@/shared/types/api.type";
 import type { User } from "../interfaces/user.interface";
+import type { UserPayload } from "../interfaces/userPayload.inteface";
 import { APP_CONFIG } from "@/configs/app.config";
 
-export async function userService_create(
+export async function userService_update(
   id: string,
-  payload: any,
+  payload: UserPayload,
 ): Promise<User> {
-  const response: ApiResponse<User> = await http.post(
+  const response: ApiResponse<User> = await http.put(
     `${APP_CONFIG.apiUrl}/user/${id}`,
     payload,
   );

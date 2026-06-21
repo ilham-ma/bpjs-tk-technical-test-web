@@ -49,8 +49,9 @@ const MONTH_NAMES = [
 const WEEKDAYS = ["Su", "Mo", "Tu", "We", "Th", "Fr", "Sa"];
 const YEAR_RANGE_SIZE = 12;
 
-function formatDate(date: Date | null): string {
-  if (!date) return "";
+function formatDate(data: Date | null): string {
+  if (!data) return "";
+  const date = new Date(data);
   const day = String(date.getDate()).padStart(2, "0");
   const month = String(date.getMonth() + 1).padStart(2, "0");
   const year = date.getFullYear();

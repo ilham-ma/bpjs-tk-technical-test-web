@@ -1,3 +1,7 @@
+import type { UserEducation } from "./userEducation.interface";
+import type { UserEmploymentHistory } from "./userEmploymentHistory.interface";
+import type { UserSkill } from "./userSkill.interface";
+
 export interface User {
   id: string;
   wantedJobTitle: string;
@@ -16,4 +20,7 @@ export interface User {
   photoUrl: string | null;
   createdAt: Date;
   updatedAt: Date;
+  skills: UserSkill[];
+  educations: UserEducation[];
+  employmentHistories: UserEmploymentHistory[];
 }
