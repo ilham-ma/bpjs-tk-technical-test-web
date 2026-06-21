@@ -2,7 +2,7 @@ import type { AxiosResponse } from "axios";
 
 export type ApiResponse<T> = AxiosResponse<{
   data: T;
-  message: string;
+  status: string;
 }>;
 
 export type Nullable<T> = T | null;

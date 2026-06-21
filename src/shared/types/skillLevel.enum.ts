@@ -1,8 +1,4 @@
-export enum SkillLevelEnum {
-  Basic = "Basic",
-  Intermediate = "Intermediate",
-  Expert = "Expert",
-}
+import type { SkillLevelEnum } from "@/modules/user/enums/skil.enum";
 
 export interface Skill {
   skill: string;

@@ -31,6 +31,6 @@ const isError = computed(() => !!props.errorMessage);
 
     <slot isError></slot>
 
-    <span v-if="isError" class="text-app-blue">{{ props.errorMessage }}</span>
+    <span v-if="isError" class="text-red-500">{{ props.errorMessage }}</span>
   </section>
 </template>

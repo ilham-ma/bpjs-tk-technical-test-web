@@ -6,8 +6,9 @@ import AppBaseInputText from "@/components/base/AppBaseInputText.vue";
 import AppBaseInputOption from "@/components/base/AppBaseInputOption.vue";
 import AppBaseButton from "@/components/base/AppBaseButton.vue";
 import AppBaseLabel from "@/components/base/AppBaseLabel.vue";
-import { SkillLevelEnum, type Skill } from "@/shared/types/skillLevel.enum";
+import { type Skill } from "@/shared/types/skillLevel.enum";
 import type { Option } from "@/shared/types/option.type";
+import { SkillLevelEnum } from "../enums/skil.enum";
 
 export interface UserSkillFormDialogProps {
   isError?: boolean;
@@ -34,7 +35,7 @@ const levelOptions: Option[] = [
 ];
 
 const isSubmitDisabled = computed(
-  () => !skillInput.value?.trim() || !levelInput.value
+  () => !skillInput.value?.trim() || !levelInput.value,
 );
 
 function resetForm() {
@@ -58,7 +59,7 @@ function onSubmit() {
   if (!trimmed || !levelInput.value) return;
 
   const isDuplicate = model.value.some(
-    (item) => item.skill.toLowerCase() === trimmed.toLowerCase()
+    (item) => item.skill.toLowerCase() === trimmed.toLowerCase(),
   );
   if (isDuplicate) {
     errorMessage.value = "Skill already exists";
