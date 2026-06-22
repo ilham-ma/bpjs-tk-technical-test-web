@@ -137,6 +137,7 @@ export function useUserForm() {
     form.drivingLicense = data.drivingLicense;
     form.nationality = data.nationality;
     form.placeOfBirth = data.placeOfBirth;
+    form.professionalSummary = data.professionalSummary;
     form.dateOfBirth = data.dateOfBirth ? new Date(data.dateOfBirth) : null;
     form.skills = data.skills.map((skill) => ({
       skill: skill.name,

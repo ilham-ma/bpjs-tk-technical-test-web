@@ -10,7 +10,7 @@ export function useUserListApi(callback: (data: User | null) => void) {
     const data = await userService_detail();
 
     currentUserId.value = data ? data.id : null;
-    photoUrl.value = data ? data.id : null;
+    photoUrl.value = data ? data.photoUrl : null;
     callback(data);
   }
 
