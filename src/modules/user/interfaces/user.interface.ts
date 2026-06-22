@@ -20,6 +20,7 @@ export interface User {
   photoUrl: string | null;
   createdAt: Date;
   updatedAt: Date;
+  professionalSummary: string;
   skills: UserSkill[];
   educations: UserEducation[];
   employmentHistories: UserEmploymentHistory[];
