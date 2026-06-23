@@ -1,4 +1,4 @@
-import { reactive, computed } from "vue";
+import { reactive, computed, ref } from "vue";
 import useVuelidate from "@vuelidate/core";
 import { required, email, minLength, helpers } from "@vuelidate/validators";
 import type { User } from "../interfaces/user.interface";
@@ -7,8 +7,11 @@ import dayjs from "dayjs";
 import type { UserEmploymentHistory } from "../interfaces/userEmploymentHistory.interface";
 import type { UserEducation } from "../interfaces/userEducation.interface";
 import type { UserSkill } from "../interfaces/userSkill.interface";
+import type { Skill } from "@/modules/skill/interfaces/skill.interface";
 
 export function useUserForm() {
+  const isNotUsingLevel = ref(false);
+  const selectedSkills = ref<Skill[]>([]);
   const form = reactive({
     title: "",
     file: undefined as File | undefined,
@@ -197,11 +200,7 @@ export function useUserForm() {
     form.placeOfBirth = data.placeOfBirth;
     form.professionalSummary = data.professionalSummary;
     form.dateOfBirth = data.dateOfBirth ?? null;
-    form.skills = data.skills.map((skill) => ({
-      id: skill.id,
-      name: skill.name,
-      level: skill.level,
-    }));
+    form.skills = [];
     form.employmentHistories = data.employmentHistories.map(
       (employmentHistory) => ({
         id: employmentHistory.id,
@@ -221,6 +220,12 @@ export function useUserForm() {
       description: education.description,
       startDate: education.startDate,
       endDate: education.endDate,
+    }));
+
+    selectedSkills.value = data.skills.map((skill) => ({
+      id: skill.id,
+      name: skill.name,
+      level: skill.level,
     }));
   }
 
@@ -245,14 +250,9 @@ export function useUserForm() {
       dateOfBirth: form.dateOfBirth as string,
       photoUrl: "",
       professionalSummary: form.professionalSummary,
-      skills: form.skills.map((skill) => ({
-        name: skill.name,
-        level: skill.level,
-      })),
-      educations: form.educations.map((education) => ({ ...education })),
-      employmentHistories: form.employmentHistories.map(
-        (employmentHistory) => ({ ...employmentHistory }),
-      ),
+      skills: form.skills,
+      educations: form.educations,
+      employmentHistories: form.employmentHistories,
     };
   }
 
@@ -265,5 +265,7 @@ export function useUserForm() {
     errorOfEducation,
     getFormWithPayloadFormat,
     setPhoto,
+    isNotUsingLevel,
+    selectedSkills,
   };
 }

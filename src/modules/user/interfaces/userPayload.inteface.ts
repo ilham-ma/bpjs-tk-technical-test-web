@@ -1,11 +1,6 @@
-import type { Skill } from "@/shared/types/skillLevel.enum";
-import type { Education } from "@/shared/types/education.type";
-import type { EmploymentHistory } from "@/shared/types/employmentHistory.type";
-
-export interface UserPayloadSkill {
-  name: string;
-  level: Skill["level"];
-}
+import type { UserEducation } from "./userEducation.interface";
+import type { UserEmploymentHistory } from "./userEmploymentHistory.interface";
+import type { UserSkill } from "./userSkill.interface";
 
 export interface UserPayload {
   wantedJobTitle: string;
@@ -23,7 +18,7 @@ export interface UserPayload {
   dateOfBirth: string;
   professionalSummary: string;
   photoUrl: string;
-  skills: UserPayloadSkill[];
-  educations: Education[];
-  employmentHistories: EmploymentHistory[];
+  skills: UserSkill[];
+  educations: UserEducation[];
+  employmentHistories: UserEmploymentHistory[];
 }

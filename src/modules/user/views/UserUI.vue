@@ -4,7 +4,6 @@ import AppBaseInputDate from "@/components/base/AppBaseInputDate.vue";
 import AppBaseInputPhoto from "@/components/base/AppBaseInputPhoto.vue";
 import AppBaseInputText from "@/components/base/AppBaseInputText.vue";
 import AppCommonFormGroup from "@/components/common/AppCommonFormGroup.vue";
-import UserSkillFormDialog from "@/modules/user/components/UserSkillFormDialog.vue";
 import UserEducationForm from "@/modules/user/components/UserEducationForm.vue";
 import AppBaseButton from "@/components/base/AppBaseButton.vue";
 import UserSkeleton from "@/modules/user/components/UserSkeleton.vue";
@@ -20,6 +19,11 @@ import { useProfileUploadApi } from "@/modules/profile/composables/useProfileUpl
 import UserEmploymentHistoryForm from "../components/UserEmploymentHistoryForm.vue";
 import dayjs from "dayjs";
 import UserSkillForm from "../components/UserSkillForm.vue";
+import AppBaseSwitch from "@/components/base/AppBaseSwitch.vue";
+import { useSkillListApi } from "@/modules/skill/composables/useSkillListApi.ts";
+import UserSkillBadge from "../components/UserSkillBadge.vue";
+import type { Skill } from "@/modules/skill/interfaces/skill.interface.ts";
+import { useSkillCreateApi } from "@/modules/skill/composables/useSkillCreateApi.ts";
 
 const { state: loading, open: showLoading, close: hideLoading } = useSwitch();
 const toast = useToast();
@@ -32,40 +36,28 @@ const {
   v$,
   getFormWithPayloadFormat,
   setPhoto,
+  isNotUsingLevel,
+  selectedSkills,
 } = useUserForm();
 const { currentUserId, fetchList, photoUrl } = useUserListApi(setForm);
 const { create, loading: createLoading } = useUserCreateApi(setForm);
 const { update, loading: updateLoading } = useUserUpdateApi(setForm);
 const { download, loading: downloadLoading } = useProfileDownloadApi(setPhoto);
 const { upload, loading: uploadLoading } = useProfileUploadApi();
+const { create: createSkill, loading: loadingCreateSkill } =
+  useSkillCreateApi();
+const {
+  loading: skillLoading,
+  fetchList: fetchListSkill,
+  skills,
+} = useSkillListApi();
 
-async function submitForm() {
-  v$.value.$touch();
-  if (v$.value.$invalid) return;
-
-  let photoUrl: string | null = null;
-  if (form.file) {
-    photoUrl = await upload(form.file);
-  }
-
-  if (currentUserId.value) {
-    await update(currentUserId.value, {
-      ...getFormWithPayloadFormat(),
-      ...(photoUrl ? { photoUrl } : {}),
-    });
-  } else {
-    await create({
-      ...getFormWithPayloadFormat(),
-      ...(photoUrl ? { photoUrl } : {}),
-    });
-  }
-}
-
-onBeforeMount(async () => {
+async function fetchInitData() {
   try {
     showLoading();
 
-    await fetchList();
+    await Promise.all([fetchList(), fetchListSkill()]);
+
     if (photoUrl.value) {
       await download(photoUrl.value);
     }
@@ -84,11 +76,61 @@ onBeforeMount(async () => {
   } finally {
     hideLoading();
   }
-});
+}
+
+async function submitForm() {
+  v$.value.$touch();
+  if (v$.value.$invalid) return;
+
+  let photoUrl: string | null = null;
+  if (form.file) {
+    photoUrl = await upload(form.file);
+  }
+
+  const formatedForm = getFormWithPayloadFormat();
+
+  if (formatedForm.skills.length) {
+    const newSkills = await createSkill([
+      ...formatedForm.skills.filter(({ id }) => id.length === 0),
+    ]);
+
+    formatedForm.skills = newSkills.length ? newSkills : formatedForm.skills;
+  }
+
+  const payload = {
+    ...formatedForm,
+    ...(photoUrl ? { photoUrl } : {}),
+    skills: [...formatedForm.skills, ...selectedSkills.value],
+  };
+  if (currentUserId.value) {
+    await update(currentUserId.value, payload);
+  } else {
+    await create(payload);
+  }
+
+  fetchInitData();
+}
+
+function checkExistSkill(skillId: string): boolean {
+  return !!selectedSkills.value.find((selected) => selected.id === skillId);
+}
+function selectSkill(skill: Skill) {
+  const isExist = checkExistSkill(skill.id);
+
+  if (!isExist) {
+    selectedSkills.value.push(skill);
+  } else {
+    selectedSkills.value = selectedSkills.value.filter(
+      ({ id }) => id !== skill.id,
+    );
+  }
+}
+
+onBeforeMount(fetchInitData);
 </script>
 
 <template>
-  <UserSkeleton v-if="loading || downloadLoading" />
+  <UserSkeleton v-if="loading || downloadLoading || skillLoading" />
   <div v-else class="px-10 py-12 space-y-5">
     <h4 class="font-bold text-app-black text-2xl">Personal Details</h4>
 
@@ -318,12 +360,7 @@ onBeforeMount(async () => {
         />
       </AppCommonFormGroup>
 
-      <AppCommonFormGroup
-        id="education"
-        v-slot="attrs"
-        class="col-span-2"
-        :error-message="errorOf('educations')"
-      >
+      <AppCommonFormGroup id="education" v-slot="attrs" class="col-span-2">
         <header class="flex flex-col space-y-1">
           <h5 class="font-bold text-xl text-app-black">Education</h5>
           <p class="text-app-label">
@@ -352,16 +389,42 @@ onBeforeMount(async () => {
             sure they match the keywords of the job listing if applying via an
             online system.
           </p>
+
+          <span class="flex items-center gap-4 mt-2">
+            <AppBaseSwitch v-model="isNotUsingLevel" />
+            <label class="text-app-black">Don't show experience level</label>
+          </span>
         </header>
 
-        <UserSkillForm v-bind="attrs" v-model="form.skills" />
+        <section
+          v-if="skills.length"
+          class="flex items-center gap-4 flex-wrap mt-6"
+        >
+          <UserSkillBadge
+            v-for="skill in skills"
+            :key="skill.id"
+            :label="
+              isNotUsingLevel ? skill.name : `${skill.name} - ${skill.level}`
+            "
+            :is-active="checkExistSkill(skill.id)"
+            @click="selectSkill(skill)"
+          />
+        </section>
+
+        <UserSkillForm
+          v-bind="attrs"
+          v-model="form.skills"
+          :isNotUsingLevel="isNotUsingLevel"
+        />
       </AppCommonFormGroup>
     </section>
 
     <AppBaseButton
       :label="currentUserId ? 'Save Change' : 'Submit'"
       class="w-full mt-10"
-      :loading="updateLoading || createLoading || uploadLoading"
+      :loading="
+        updateLoading || createLoading || uploadLoading || loadingCreateSkill
+      "
       @click="submitForm"
     />
   </div>

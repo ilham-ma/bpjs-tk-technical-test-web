@@ -1,6 +1,6 @@
 import type { SkillLevelEnum } from "@/shared/enums/skillLevel.enum";
 
-export interface UserSkill {
+export interface Skill {
   id: string;
   name: string;
   level: SkillLevelEnum;
