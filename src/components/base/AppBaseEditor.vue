@@ -13,6 +13,8 @@ import DOMPurify from "dompurify";
 export interface AppBaseEditorProps {
   placeholder?: string;
   isError?: boolean;
+  usingCounter?: boolean;
+  disabled?: boolean;
 }
 const props = defineProps<AppBaseEditorProps>();
 
@@ -22,6 +24,7 @@ const editor = ref<Squire | null>(null);
 const editorElement = useTemplateRef<HTMLElement>("editor");
 
 const isEmpty = ref(true);
+const plainTextLength = ref(0);
 let isSyncingFromModel = false;
 
 function getEditorHTML(): string {
@@ -43,7 +46,16 @@ function syncModelToEditor(value: string) {
 function onEditorInput() {
   updateEmptyState();
   if (isSyncingFromModel) return;
-  model.value = getEditorHTML();
+  if (props.disabled) {
+    syncModelToEditor(model.value);
+    return;
+  }
+  const value = getEditorHTML();
+  if (props.usingCounter && plainTextLength.value > 200) {
+    syncModelToEditor(model.value);
+    return;
+  }
+  model.value = value;
 }
 const isBold = ref(false);
 const isItalic = ref(false);
@@ -54,7 +66,9 @@ const isUL = ref(false);
 const isLink = ref(false);
 
 function updateEmptyState() {
-  isEmpty.value = (editorElement.value?.textContent?.trim() ?? "") === "";
+  const text = editorElement.value?.textContent ?? "";
+  isEmpty.value = text.trim() === "";
+  plainTextLength.value = text.length;
 }
 
 function selectionContainsTag(tag: string): boolean {
@@ -108,7 +122,20 @@ onMounted(() => {
   } else {
     updateEmptyState();
   }
+
+  if (editorElement.value) {
+    editorElement.value.contentEditable = String(!props.disabled);
+  }
 });
+
+watch(
+  () => props.disabled,
+  (disabled) => {
+    if (editorElement.value) {
+      editorElement.value.contentEditable = String(!disabled);
+    }
+  },
+);
 
 watch(
   () => model.value,
@@ -190,6 +217,48 @@ function actionLink() {
   updateFormatState();
 }
 
+const NAVIGATION_KEYS = [
+  "ArrowUp",
+  "ArrowDown",
+  "ArrowLeft",
+  "ArrowRight",
+  "Home",
+  "End",
+  "PageUp",
+  "PageDown",
+  "Tab",
+  "Escape",
+  "Shift",
+  "Control",
+  "Meta",
+  "Alt",
+];
+
+function onEditorKeyDown(event: KeyboardEvent) {
+  if (props.disabled) {
+    if (NAVIGATION_KEYS.includes(event.key)) return;
+    if ((event.ctrlKey || event.metaKey) && (event.key === "c" || event.key === "a")) return;
+    event.preventDefault();
+    return;
+  }
+  if (props.usingCounter && plainTextLength.value >= 200) {
+    if (event.ctrlKey || event.metaKey) return;
+    if (NAVIGATION_KEYS.includes(event.key)) return;
+    if (event.key === "Backspace" || event.key === "Delete") return;
+    event.preventDefault();
+  }
+}
+
+function onEditorPaste(event: ClipboardEvent) {
+  if (props.disabled) {
+    event.preventDefault();
+    return;
+  }
+  if (props.usingCounter && plainTextLength.value >= 200) {
+    event.preventDefault();
+  }
+}
+
 function onEditorClick(event: MouseEvent) {
   if (!event.ctrlKey) return;
   const target = event.target as Element;
@@ -200,6 +269,8 @@ function onEditorClick(event: MouseEvent) {
   event.preventDefault();
   window.open(href, "_blank");
 }
+
+const lengthValue = computed(() => plainTextLength.value);
 
 const actions = computed(() => [
   [
@@ -239,44 +310,77 @@ const actions = computed(() => [
 </script>
 
 <template>
-  <section
-    class="bg-app-field-backgroud rounded p-3 space-y-3"
-    :class="[props.isError ? 'bg-red-100' : 'bg-app-field-backgroud']"
-  >
-    <header class="flex items-center space-x-2">
-      <template v-for="(action, index) in actions" :key="index">
-        <button
-          v-for="(a, idx) in action"
-          :key="idx"
-          class="flex items-center justify-center rounded p-1 cursor-pointer hover:bg-gray-300"
-          :class="{ 'bg-gray-300': a.isActive }"
-          @click="a.action"
+  <div class="space-y-2">
+    <section
+      class="bg-app-field-backgroud rounded p-3 space-y-3"
+      :class="[
+        props.isError ? 'bg-red-100' : 'bg-app-field-backgroud',
+        props.disabled ? 'opacity-60 cursor-not-allowed' : '',
+      ]"
+    >
+      <header class="flex items-center space-x-2">
+        <template v-for="(action, index) in actions" :key="index">
+          <button
+            v-for="(a, idx) in action"
+            :key="idx"
+            type="button"
+            :disabled="props.disabled"
+            class="flex items-center justify-center rounded p-1"
+            :class="[
+              { 'bg-gray-300': a.isActive },
+              props.disabled
+                ? 'cursor-not-allowed opacity-50'
+                : 'cursor-pointer hover:bg-gray-300',
+            ]"
+            @click="a.action"
+          >
+            <component :is="a.icon" />
+          </button>
+
+          <hr
+            v-if="index < actions.length - 1"
+            class="h-5 border-r border-r-app-label"
+          />
+        </template>
+      </header>
+
+      <div class="relative">
+        <div>
+          <div
+            ref="editor"
+            :class="[
+              props.isError ? 'text-red-500' : 'text-app-black',
+              props.disabled ? 'cursor-not-allowed' : '',
+            ]"
+            class="editor-content min-h-40 outline-none px-3"
+            @click="onEditorClick"
+            @keydown="onEditorKeyDown"
+            @paste="onEditorPaste"
+          ></div>
+        </div>
+        <span
+          v-if="isEmpty && props.placeholder"
+          class="absolute top-0 left-3 pointer-events-none select-none text-gray-400"
+          style="font-size: 16px"
+          >{{ props.placeholder }}</span
         >
-          <component :is="a.icon" />
-        </button>
+      </div>
+    </section>
 
-        <hr
-          v-if="index < actions.length - 1"
-          class="h-5 border-r border-r-app-label"
-        />
-      </template>
-    </header>
-
-    <div class="relative">
-      <div
-        ref="editor"
-        :class="[props.isError ? 'text-red-500' : 'text-app-black']"
-        class="editor-content min-h-40 outline-none px-3"
-        @click="onEditorClick"
-      ></div>
-      <span
-        v-if="isEmpty && props.placeholder"
-        class="absolute top-0 left-3 pointer-events-none select-none text-gray-400"
-        style="font-size: 16px"
-        >{{ props.placeholder }}</span
+    <section
+      v-if="props.usingCounter"
+      class="flex items-center justify-between"
+    >
+      <span class="text-app-label"
+        >Recruiter tip: write 200+ characters to increase interview
+        chances</span
       >
-    </div>
-  </section>
+
+      <span class="flex items-center text-app-label">
+        <span class="text-app-black">{{ lengthValue }}</span> / 200+
+      </span>
+    </section>
+  </div>
 </template>
 
 <style scoped>

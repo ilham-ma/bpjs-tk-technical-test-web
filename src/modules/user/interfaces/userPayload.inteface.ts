@@ -20,7 +20,7 @@ export interface UserPayload {
   drivingLicense: string;
   nationality: string;
   placeOfBirth: string;
-  dateOfBirth: Date | string;
+  dateOfBirth: string;
   professionalSummary: string;
   photoUrl: string;
   skills: UserPayloadSkill[];

@@ -2,8 +2,8 @@ export interface UserEducation {
   id: string;
   school: string;
   degree: string;
-  startDate: Date;
-  endDate: Date;
+  startDate: string;
+  endDate: string;
   city: string;
   description: string;
 }

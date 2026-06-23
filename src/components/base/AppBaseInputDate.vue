@@ -1,21 +1,49 @@
 <script lang="ts" setup>
 import { computed, onBeforeUnmount, onMounted, ref, useTemplateRef } from "vue";
+import dayjs from "dayjs";
+import customParseFormat from "dayjs/plugin/customParseFormat";
+
+dayjs.extend(customParseFormat);
 
 defineOptions({ inheritAttrs: false });
 
 export interface AppBaseInputDateProps {
   isError?: boolean;
   placeholder?: string;
-  minDate?: Date;
-  maxDate?: Date;
+  minDate?: string;
+  maxDate?: string;
+  withoutDate?: boolean;
+  format?: string;
 }
 
 const props = withDefaults(defineProps<AppBaseInputDateProps>(), {
   isError: false,
   placeholder: "",
+  withoutDate: false,
+  format: "DD/MM/YYYY",
 });
 
-const model = defineModel<Date | null>({ default: null });
+const model = defineModel<string | null>({ default: null });
+
+const valueFormat = computed(() =>
+  props.withoutDate ? "YYYY-MM" : "YYYY-MM-DD",
+);
+
+function parseValue(value: string | null | undefined): Date | null {
+  if (!value) return null;
+  const d = dayjs(value, valueFormat.value, true);
+  return d.isValid() ? d.toDate() : null;
+}
+
+function parseMin(): Date | null {
+  return parseValue(props.minDate);
+}
+
+function parseMax(): Date | null {
+  return parseValue(props.maxDate);
+}
+
+const currentDate = computed<Date | null>(() => parseValue(model.value));
 
 const isOpen = ref(false);
 const viewMonth = ref<number>(0);
@@ -49,15 +77,6 @@ const MONTH_NAMES = [
 const WEEKDAYS = ["Su", "Mo", "Tu", "We", "Th", "Fr", "Sa"];
 const YEAR_RANGE_SIZE = 12;
 
-function formatDate(data: Date | null): string {
-  if (!data) return "";
-  const date = new Date(data);
-  const day = String(date.getDate()).padStart(2, "0");
-  const month = String(date.getMonth() + 1).padStart(2, "0");
-  const year = date.getFullYear();
-  return `${day}/${month}/${year}`;
-}
-
 function isSameDay(a: Date, b: Date): boolean {
   return (
     a.getFullYear() === b.getFullYear() &&
@@ -71,21 +90,39 @@ function isToday(date: Date): boolean {
 }
 
 function isDisabled(date: Date): boolean {
-  if (props.minDate && date < props.minDate) {
-    const minDateNormalized = new Date(
-      props.minDate.getFullYear(),
-      props.minDate.getMonth(),
-      props.minDate.getDate(),
+  const min = parseMin();
+  const max = parseMax();
+  if (min) {
+    const minNorm = new Date(
+      min.getFullYear(),
+      min.getMonth(),
+      min.getDate(),
     );
-    if (date.getTime() < minDateNormalized.getTime()) return true;
+    if (date.getTime() < minNorm.getTime()) return true;
   }
-  if (props.maxDate) {
-    const maxDateNormalized = new Date(
-      props.maxDate.getFullYear(),
-      props.maxDate.getMonth(),
-      props.maxDate.getDate(),
+  if (max) {
+    const maxNorm = new Date(
+      max.getFullYear(),
+      max.getMonth(),
+      max.getDate(),
     );
-    if (date.getTime() > maxDateNormalized.getTime()) return true;
+    if (date.getTime() > maxNorm.getTime()) return true;
+  }
+  return false;
+}
+
+function isMonthDisabled(year: number, month: number): boolean {
+  const min = parseMin();
+  const max = parseMax();
+  if (min) {
+    const minY = min.getFullYear();
+    const minM = min.getMonth();
+    if (year < minY || (year === minY && month < minM)) return true;
+  }
+  if (max) {
+    const maxY = max.getFullYear();
+    const maxM = max.getMonth();
+    if (year > maxY || (year === maxY && month > maxM)) return true;
   }
   return false;
 }
@@ -113,7 +150,10 @@ function getCalendarCells(year: number, month: number): Date[] {
   return cells;
 }
 
-const displayLabel = computed(() => formatDate(model.value));
+const displayLabel = computed(() => {
+  if (!currentDate.value) return "";
+  return dayjs(currentDate.value).format(props.format);
+});
 
 const yearRangeStart = computed(
   () => Math.floor(viewYear.value / YEAR_RANGE_SIZE) * YEAR_RANGE_SIZE,
@@ -137,9 +177,9 @@ function updatePanelPosition() {
 }
 
 function openPanel() {
-  if (model.value) {
-    viewYear.value = model.value.getFullYear();
-    viewMonth.value = model.value.getMonth();
+  if (currentDate.value) {
+    viewYear.value = currentDate.value.getFullYear();
+    viewMonth.value = currentDate.value.getMonth();
   } else {
     const today = new Date();
     viewYear.value = today.getFullYear();
@@ -186,6 +226,14 @@ function selectMonth(monthIndex: number) {
   showMonthDropdown.value = false;
 }
 
+function selectMonthOnly(monthIndex: number) {
+  if (isMonthDisabled(viewYear.value, monthIndex)) return;
+  model.value = dayjs(new Date(viewYear.value, monthIndex, 1)).format(
+    "YYYY-MM",
+  );
+  closePanel();
+}
+
 function selectYear(year: number) {
   viewYear.value = year;
   showYearDropdown.value = false;
@@ -199,9 +247,19 @@ function nextYearRange() {
   viewYear.value += YEAR_RANGE_SIZE;
 }
 
+function prevYear() {
+  viewYear.value--;
+}
+
+function nextYear() {
+  viewYear.value++;
+}
+
 function selectDate(date: Date) {
   if (isDisabled(date)) return;
-  model.value = new Date(date.getFullYear(), date.getMonth(), date.getDate());
+  model.value = dayjs(
+    new Date(date.getFullYear(), date.getMonth(), date.getDate()),
+  ).format("YYYY-MM-DD");
   closePanel();
 }
 
@@ -276,78 +334,12 @@ onBeforeUnmount(() => {
       class="fixed bg-white border border-gray-300 rounded shadow-lg z-9999 p-3 w-72"
       :style="panelStyle"
     >
-      <header class="flex items-center justify-between mb-2">
-        <button
-          type="button"
-          class="p-1 rounded hover:bg-gray-100"
-          @click="prevMonth"
-        >
-          <svg
-            xmlns="http://www.w3.org/2000/svg"
-            viewBox="0 -960 960 960"
-            width="20"
-            height="20"
-            fill="currentColor"
-            class="text-gray-600"
-          >
-            <path d="M560-240 320-480l240-240 56 56-184 184 184 184-56 56Z" />
-          </svg>
-        </button>
-
-        <div class="flex items-center space-x-1">
-          <button
-            type="button"
-            class="px-2 py-1 text-app-black rounded hover:bg-gray-100 font-medium text-sm"
-            @click="toggleMonthDropdown"
-          >
-            {{ MONTH_NAMES[viewMonth] }}
-          </button>
-          <button
-            type="button"
-            class="px-2 py-1 text-app-black rounded hover:bg-gray-100 font-medium text-sm"
-            @click="toggleYearDropdown"
-          >
-            {{ viewYear }}
-          </button>
-        </div>
-
-        <button
-          type="button"
-          class="p-1 rounded hover:bg-gray-100"
-          @click="nextMonth"
-        >
-          <svg
-            xmlns="http://www.w3.org/2000/svg"
-            viewBox="0 -960 960 960"
-            width="20"
-            height="20"
-            fill="currentColor"
-            class="text-gray-600"
-          >
-            <path d="M504-480 320-664l56-56 240 240-240 240-56-56 184-184Z" />
-          </svg>
-        </button>
-      </header>
-
-      <div v-if="showMonthDropdown" class="grid grid-cols-3 gap-1 mb-2">
-        <button
-          v-for="(m, idx) in MONTH_NAMES"
-          :key="m"
-          type="button"
-          class="px-2 py-2 rounded text-sm text-app-black hover:bg-gray-100"
-          :class="{ 'bg-blue-50 text-app-blue': idx === viewMonth }"
-          @click="selectMonth(idx)"
-        >
-          {{ m }}
-        </button>
-      </div>
-
-      <div v-else-if="showYearDropdown" class="mb-2">
-        <div class="flex items-center justify-between mb-1">
+      <template v-if="props.withoutDate">
+        <header class="flex items-center justify-between mb-2">
           <button
             type="button"
             class="p-1 rounded hover:bg-gray-100"
-            @click="prevYearRange"
+            @click="prevYear"
           >
             <svg
               xmlns="http://www.w3.org/2000/svg"
@@ -360,13 +352,19 @@ onBeforeUnmount(() => {
               <path d="M560-240 320-480l240-240 56 56-184 184 184 184-56 56Z" />
             </svg>
           </button>
-          <span class="text-xs text-gray-500">
-            {{ yearRangeStart }} - {{ yearRangeStart + YEAR_RANGE_SIZE - 1 }}
-          </span>
+
+          <button
+            type="button"
+            class="px-2 py-1 text-app-black rounded hover:bg-gray-100 font-medium text-sm"
+            @click="toggleYearDropdown"
+          >
+            {{ viewYear }}
+          </button>
+
           <button
             type="button"
             class="p-1 rounded hover:bg-gray-100"
-            @click="nextYearRange"
+            @click="nextYear"
           >
             <svg
               xmlns="http://www.w3.org/2000/svg"
@@ -379,58 +377,237 @@ onBeforeUnmount(() => {
               <path d="M504-480 320-664l56-56 240 240-240 240-56-56 184-184Z" />
             </svg>
           </button>
-        </div>
-        <div class="grid grid-cols-3 gap-1">
-          <button
-            v-for="y in visibleYears"
-            :key="y"
-            type="button"
-            class="px-2 py-2 rounded text-sm text-app-black hover:bg-gray-100"
-            :class="{ 'bg-blue-50 text-app-blue': y === viewYear }"
-            @click="selectYear(y)"
-          >
-            {{ y }}
-          </button>
-        </div>
-      </div>
+        </header>
 
-      <template v-else>
-        <div class="grid grid-cols-7 mb-1">
-          <div
-            v-for="d in WEEKDAYS"
-            :key="d"
-            class="text-center text-xs text-gray-500 py-1"
-          >
-            {{ d }}
+        <div v-if="showYearDropdown" class="mb-2">
+          <div class="flex items-center justify-between mb-1">
+            <button
+              type="button"
+              class="p-1 rounded hover:bg-gray-100"
+              @click="prevYearRange"
+            >
+              <svg
+                xmlns="http://www.w3.org/2000/svg"
+                viewBox="0 -960 960 960"
+                width="20"
+                height="20"
+                fill="currentColor"
+                class="text-gray-600"
+              >
+                <path d="M560-240 320-480l240-240 56 56-184 184 184 184-56 56Z" />
+              </svg>
+            </button>
+            <span class="text-xs text-gray-500">
+              {{ yearRangeStart }} - {{ yearRangeStart + YEAR_RANGE_SIZE - 1 }}
+            </span>
+            <button
+              type="button"
+              class="p-1 rounded hover:bg-gray-100"
+              @click="nextYearRange"
+            >
+              <svg
+                xmlns="http://www.w3.org/2000/svg"
+                viewBox="0 -960 960 960"
+                width="20"
+                height="20"
+                fill="currentColor"
+                class="text-gray-600"
+              >
+                <path d="M504-480 320-664l56-56 240 240-240 240-56-56 184-184Z" />
+              </svg>
+            </button>
+          </div>
+          <div class="grid grid-cols-3 gap-1">
+            <button
+              v-for="y in visibleYears"
+              :key="y"
+              type="button"
+              class="px-2 py-2 rounded text-sm text-app-black hover:bg-gray-100"
+              :class="{ 'bg-blue-50 text-app-blue': y === viewYear }"
+              @click="selectYear(y)"
+            >
+              {{ y }}
+            </button>
           </div>
         </div>
 
-        <div class="grid grid-cols-7 gap-1">
+        <div v-else class="grid grid-cols-3 gap-1">
           <button
-            v-for="(cell, idx) in getCalendarCells(viewYear, viewMonth)"
-            :key="idx"
+            v-for="(m, idx) in MONTH_NAMES"
+            :key="m"
             type="button"
-            :disabled="isDisabled(cell)"
-            class="aspect-square rounded text-sm flex items-center justify-center"
+            :disabled="isMonthDisabled(viewYear, idx)"
+            class="px-2 py-2 rounded text-sm text-app-black hover:bg-gray-100"
             :class="[
-              cell.getMonth() !== viewMonth
-                ? 'text-gray-300'
-                : 'text-app-black',
-              model && isSameDay(cell, model)
+              currentDate && currentDate.getFullYear() === viewYear && currentDate.getMonth() === idx
                 ? 'bg-app-blue text-white'
-                : 'hover:bg-gray-100',
-              isToday(cell) && !(model && isSameDay(cell, model))
-                ? 'border border-app-blue'
                 : '',
-              isDisabled(cell)
-                ? 'opacity-30 cursor-not-allowed'
-                : 'cursor-pointer',
+              isMonthDisabled(viewYear, idx) ? 'opacity-30 cursor-not-allowed' : 'cursor-pointer',
             ]"
-            @click="selectDate(cell)"
+            @click="selectMonthOnly(idx)"
           >
-            {{ cell.getDate() }}
+            {{ m }}
           </button>
         </div>
+      </template>
+
+      <template v-else>
+        <header class="flex items-center justify-between mb-2">
+          <button
+            type="button"
+            class="p-1 rounded hover:bg-gray-100"
+            @click="prevMonth"
+          >
+            <svg
+              xmlns="http://www.w3.org/2000/svg"
+              viewBox="0 -960 960 960"
+              width="20"
+              height="20"
+              fill="currentColor"
+              class="text-gray-600"
+            >
+              <path d="M560-240 320-480l240-240 56 56-184 184 184 184-56 56Z" />
+            </svg>
+          </button>
+
+          <div class="flex items-center space-x-1">
+            <button
+              type="button"
+              class="px-2 py-1 text-app-black rounded hover:bg-gray-100 font-medium text-sm"
+              @click="toggleMonthDropdown"
+            >
+              {{ MONTH_NAMES[viewMonth] }}
+            </button>
+            <button
+              type="button"
+              class="px-2 py-1 text-app-black rounded hover:bg-gray-100 font-medium text-sm"
+              @click="toggleYearDropdown"
+            >
+              {{ viewYear }}
+            </button>
+          </div>
+
+          <button
+            type="button"
+            class="p-1 rounded hover:bg-gray-100"
+            @click="nextMonth"
+          >
+            <svg
+              xmlns="http://www.w3.org/2000/svg"
+              viewBox="0 -960 960 960"
+              width="20"
+              height="20"
+              fill="currentColor"
+              class="text-gray-600"
+            >
+              <path d="M504-480 320-664l56-56 240 240-240 240-56-56 184-184Z" />
+            </svg>
+          </button>
+        </header>
+
+        <div v-if="showMonthDropdown" class="grid grid-cols-3 gap-1 mb-2">
+          <button
+            v-for="(m, idx) in MONTH_NAMES"
+            :key="m"
+            type="button"
+            class="px-2 py-2 rounded text-sm text-app-black hover:bg-gray-100"
+            :class="{ 'bg-blue-50 text-app-blue': idx === viewMonth }"
+            @click="selectMonth(idx)"
+          >
+            {{ m }}
+          </button>
+        </div>
+
+        <div v-else-if="showYearDropdown" class="mb-2">
+          <div class="flex items-center justify-between mb-1">
+            <button
+              type="button"
+              class="p-1 rounded hover:bg-gray-100"
+              @click="prevYearRange"
+            >
+              <svg
+                xmlns="http://www.w3.org/2000/svg"
+                viewBox="0 -960 960 960"
+                width="20"
+                height="20"
+                fill="currentColor"
+                class="text-gray-600"
+              >
+                <path d="M560-240 320-480l240-240 56 56-184 184 184 184-56 56Z" />
+              </svg>
+            </button>
+            <span class="text-xs text-gray-500">
+              {{ yearRangeStart }} - {{ yearRangeStart + YEAR_RANGE_SIZE - 1 }}
+            </span>
+            <button
+              type="button"
+              class="p-1 rounded hover:bg-gray-100"
+              @click="nextYearRange"
+            >
+              <svg
+                xmlns="http://www.w3.org/2000/svg"
+                viewBox="0 -960 960 960"
+                width="20"
+                height="20"
+                fill="currentColor"
+                class="text-gray-600"
+              >
+                <path d="M504-480 320-664l56-56 240 240-240 240-56-56 184-184Z" />
+              </svg>
+            </button>
+          </div>
+          <div class="grid grid-cols-3 gap-1">
+            <button
+              v-for="y in visibleYears"
+              :key="y"
+              type="button"
+              class="px-2 py-2 rounded text-sm text-app-black hover:bg-gray-100"
+              :class="{ 'bg-blue-50 text-app-blue': y === viewYear }"
+              @click="selectYear(y)"
+            >
+              {{ y }}
+            </button>
+          </div>
+        </div>
+
+        <template v-else>
+          <div class="grid grid-cols-7 mb-1">
+            <div
+              v-for="d in WEEKDAYS"
+              :key="d"
+              class="text-center text-xs text-gray-500 py-1"
+            >
+              {{ d }}
+            </div>
+          </div>
+
+          <div class="grid grid-cols-7 gap-1">
+            <button
+              v-for="(cell, idx) in getCalendarCells(viewYear, viewMonth)"
+              :key="idx"
+              type="button"
+              :disabled="isDisabled(cell)"
+              class="aspect-square rounded text-sm flex items-center justify-center"
+              :class="[
+                cell.getMonth() !== viewMonth
+                  ? 'text-gray-300'
+                  : 'text-app-black',
+                currentDate && isSameDay(cell, currentDate)
+                  ? 'bg-app-blue text-white'
+                  : 'hover:bg-gray-100',
+                isToday(cell) && !(currentDate && isSameDay(cell, currentDate))
+                  ? 'border border-app-blue'
+                  : '',
+                isDisabled(cell)
+                  ? 'opacity-30 cursor-not-allowed'
+                  : 'cursor-pointer',
+              ]"
+              @click="selectDate(cell)"
+            >
+              {{ cell.getDate() }}
+            </button>
+          </div>
+        </template>
       </template>
     </div>
   </Teleport>
