@@ -1,8 +1,8 @@
 export interface EmploymentHistory {
   jobTitle: string;
   employer: string;
-  startDate: Date;
-  endDate: Date | null;
+  startDate: string;
+  endDate: string | null;
   city: string;
   description: string;
 }

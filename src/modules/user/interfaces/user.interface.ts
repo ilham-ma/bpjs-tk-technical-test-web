@@ -16,7 +16,7 @@ export interface User {
   drivingLicense: string;
   nationality: string;
   placeOfBirth: string;
-  dateOfBirth: Date;
+  dateOfBirth: string;
   photoUrl: string | null;
   createdAt: Date;
   updatedAt: Date;

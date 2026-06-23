@@ -1,11 +1,12 @@
 import { reactive, computed } from "vue";
 import useVuelidate from "@vuelidate/core";
 import { required, email, minLength, helpers } from "@vuelidate/validators";
-import type { EmploymentHistory } from "@/shared/types/employmentHistory.type";
-import type { Education } from "@/shared/types/education.type";
-import type { Skill } from "@/shared/types/skillLevel.enum";
 import type { User } from "../interfaces/user.interface";
 import type { UserPayload } from "../interfaces/userPayload.inteface";
+import dayjs from "dayjs";
+import type { UserEmploymentHistory } from "../interfaces/userEmploymentHistory.interface";
+import type { UserEducation } from "../interfaces/userEducation.interface";
+import type { UserSkill } from "../interfaces/userSkill.interface";
 
 export function useUserForm() {
   const form = reactive({
@@ -22,14 +23,15 @@ export function useUserForm() {
     drivingLicense: "",
     nationality: "",
     placeOfBirth: "",
-    dateOfBirth: null as Date | null,
+    dateOfBirth: null as string | null,
     professionalSummary: "",
-    employmentHistories: [] as EmploymentHistory[],
-    educations: [] as Education[],
-    skills: [] as Skill[],
+    employmentHistories: [] as UserEmploymentHistory[],
+    educations: [] as UserEducation[],
+    skills: [] as UserSkill[],
   });
 
-  const isDateOfBirth = (v: unknown): boolean => v instanceof Date;
+  const isDateString = (v: unknown): boolean =>
+    typeof v === "string" && v.trim().length > 0 && dayjs(v).isValid();
 
   const isProfessionalSummaryValid = (v: string): boolean => {
     if (!v) return false;
@@ -85,7 +87,7 @@ export function useUserForm() {
     },
     dateOfBirth: {
       required: helpers.withMessage("Date of birth is required", (v: unknown) =>
-        isDateOfBirth(v),
+        isDateString(v),
       ),
     },
     professionalSummary: {
@@ -95,16 +97,52 @@ export function useUserForm() {
       ),
     },
     employmentHistories: {
-      minLength: helpers.withMessage(
-        "Add at least one employment history",
-        minLength(1),
-      ),
+      $each: helpers.forEach({
+        jobTitle: {
+          required: helpers.withMessage("This field is required", required),
+        },
+        employer: {
+          required: helpers.withMessage("This field is required", required),
+        },
+        startDate: {
+          required: helpers.withMessage(
+            "This field is required",
+            (v: unknown) => isDateString(v),
+          ),
+        },
+        city: {
+          required: helpers.withMessage("This field is required", required),
+        },
+        description: {
+          required: helpers.withMessage("This field is required", (v: string) =>
+            isProfessionalSummaryValid(v),
+          ),
+        },
+      }),
     },
     educations: {
-      minLength: helpers.withMessage(
-        "Add at least one education",
-        minLength(1),
-      ),
+      $each: helpers.forEach({
+        school: {
+          required: helpers.withMessage("This field is required", required),
+        },
+        degree: {
+          required: helpers.withMessage("This field is required", required),
+        },
+        startDate: {
+          required: helpers.withMessage(
+            "This field is required",
+            (v: unknown) => isDateString(v),
+          ),
+        },
+        city: {
+          required: helpers.withMessage("This field is required", required),
+        },
+        description: {
+          required: helpers.withMessage("This field is required", (v: string) =>
+            isProfessionalSummaryValid(v),
+          ),
+        },
+      }),
     },
     skills: {
       minLength: helpers.withMessage("Add at least one skill", minLength(1)),
@@ -123,6 +161,26 @@ export function useUserForm() {
     return (node.$errors[0]?.$message as string) ?? "";
   }
 
+  function errorOfEmploymentHistory(index: number, field: string): string {
+    const node: any = v$.value.employmentHistories;
+    if (!node || !node.$dirty) return "";
+    const itemErrors = node.$each?.$response?.$errors?.[index];
+    if (!itemErrors) return "";
+    const fieldErrors = itemErrors[field];
+    if (!fieldErrors || fieldErrors.length === 0) return "";
+    return (fieldErrors[0]?.$message as string) ?? "";
+  }
+
+  function errorOfEducation(index: number, field: string): string {
+    const node: any = v$.value.educations;
+    if (!node || !node.$dirty) return "";
+    const itemErrors = node.$each?.$response?.$errors?.[index];
+    if (!itemErrors) return "";
+    const fieldErrors = itemErrors[field];
+    if (!fieldErrors || fieldErrors.length === 0) return "";
+    return (fieldErrors[0]?.$message as string) ?? "";
+  }
+
   function setForm(data: User | null) {
     if (!data) return;
     form.title = data.wantedJobTitle;
@@ -138,22 +196,25 @@ export function useUserForm() {
     form.nationality = data.nationality;
     form.placeOfBirth = data.placeOfBirth;
     form.professionalSummary = data.professionalSummary;
-    form.dateOfBirth = data.dateOfBirth ? new Date(data.dateOfBirth) : null;
+    form.dateOfBirth = data.dateOfBirth ?? null;
     form.skills = data.skills.map((skill) => ({
-      skill: skill.name,
+      id: skill.id,
+      name: skill.name,
       level: skill.level,
     }));
     form.employmentHistories = data.employmentHistories.map(
       (employmentHistory) => ({
+        id: employmentHistory.id,
         jobTitle: employmentHistory.jobTitle,
         city: employmentHistory.city,
         description: employmentHistory.description,
         employer: employmentHistory.employer,
-        endDate: employmentHistory.endDate,
         startDate: employmentHistory.startDate,
+        endDate: employmentHistory.endDate,
       }),
     );
     form.educations = data.educations.map((education) => ({
+      id: education.id,
       school: education.school,
       degree: education.degree,
       city: education.city,
@@ -181,11 +242,11 @@ export function useUserForm() {
       drivingLicense: form.drivingLicense,
       nationality: form.nationality,
       placeOfBirth: form.placeOfBirth,
-      dateOfBirth: form.dateOfBirth as Date,
+      dateOfBirth: form.dateOfBirth as string,
       photoUrl: "",
       professionalSummary: form.professionalSummary,
       skills: form.skills.map((skill) => ({
-        name: skill.skill,
+        name: skill.name,
         level: skill.level,
       })),
       educations: form.educations.map((education) => ({ ...education })),
@@ -200,6 +261,8 @@ export function useUserForm() {
     v$,
     setForm,
     errorOf,
+    errorOfEmploymentHistory,
+    errorOfEducation,
     getFormWithPayloadFormat,
     setPhoto,
   };

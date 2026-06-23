@@ -5,8 +5,7 @@ import AppBaseInputPhoto from "@/components/base/AppBaseInputPhoto.vue";
 import AppBaseInputText from "@/components/base/AppBaseInputText.vue";
 import AppCommonFormGroup from "@/components/common/AppCommonFormGroup.vue";
 import UserSkillFormDialog from "@/modules/user/components/UserSkillFormDialog.vue";
-import UserEducationFormDialog from "@/modules/user/components/UserEducationFormDialog.vue";
-import UserEmploymentHistoryFormDialog from "@/modules/user/components/UserEmploymentHistoryFormDialog.vue";
+import UserEducationForm from "@/modules/user/components/UserEducationForm.vue";
 import AppBaseButton from "@/components/base/AppBaseButton.vue";
 import UserSkeleton from "@/modules/user/components/UserSkeleton.vue";
 import { useUserForm } from "@/modules/user/composables/useUserForm";
@@ -18,11 +17,22 @@ import { useToast } from "primevue/usetoast";
 import { onBeforeMount } from "vue";
 import { useProfileDownloadApi } from "@/modules/profile/composables/useProfileDownloadApi";
 import { useProfileUploadApi } from "@/modules/profile/composables/useProfileUploadApi";
+import UserEmploymentHistoryForm from "../components/UserEmploymentHistoryForm.vue";
+import dayjs from "dayjs";
+import UserSkillForm from "../components/UserSkillForm.vue";
 
 const { state: loading, open: showLoading, close: hideLoading } = useSwitch();
 const toast = useToast();
-const { form, setForm, errorOf, v$, getFormWithPayloadFormat, setPhoto } =
-  useUserForm();
+const {
+  form,
+  setForm,
+  errorOf,
+  errorOfEmploymentHistory,
+  errorOfEducation,
+  v$,
+  getFormWithPayloadFormat,
+  setPhoto,
+} = useUserForm();
 const { currentUserId, fetchList, photoUrl } = useUserListApi(setForm);
 const { create, loading: createLoading } = useUserCreateApi(setForm);
 const { update, loading: updateLoading } = useUserUpdateApi(setForm);
@@ -261,7 +271,7 @@ onBeforeMount(async () => {
           v-model="form.dateOfBirth"
           v-bind="attrs"
           placeholder="DD/MM/YYYY"
-          :max-date="new Date()"
+          :max-date="dayjs().format('YYYY-MM-DD')"
         />
       </AppCommonFormGroup>
 
@@ -291,7 +301,6 @@ onBeforeMount(async () => {
         id="employment-history"
         v-slot="attrs"
         class="col-span-2"
-        :error-message="errorOf('employmentHistories')"
       >
         <header class="flex flex-col space-y-1">
           <h5 class="font-bold text-xl text-app-black">Employment History</h5>
@@ -302,10 +311,10 @@ onBeforeMount(async () => {
           </p>
         </header>
 
-        <UserEmploymentHistoryFormDialog
+        <UserEmploymentHistoryForm
           v-bind="attrs"
           v-model="form.employmentHistories"
-          label="Add Employment"
+          :error-for="errorOfEmploymentHistory"
         />
       </AppCommonFormGroup>
 
@@ -323,10 +332,10 @@ onBeforeMount(async () => {
           </p>
         </header>
 
-        <UserEducationFormDialog
+        <UserEducationForm
           v-bind="attrs"
           v-model="form.educations"
-          label="Add Education"
+          :error-for="errorOfEducation"
         />
       </AppCommonFormGroup>
 
@@ -345,11 +354,7 @@ onBeforeMount(async () => {
           </p>
         </header>
 
-        <UserSkillFormDialog
-          v-bind="attrs"
-          v-model="form.skills"
-          label="Add Skill"
-        />
+        <UserSkillForm v-bind="attrs" v-model="form.skills" />
       </AppCommonFormGroup>
     </section>
 
