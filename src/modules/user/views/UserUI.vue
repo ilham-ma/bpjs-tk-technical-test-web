@@ -360,12 +360,7 @@ onBeforeMount(fetchInitData);
         />
       </AppCommonFormGroup>
 
-      <AppCommonFormGroup
-        id="education"
-        v-slot="attrs"
-        class="col-span-2"
-        :error-message="errorOf('educations')"
-      >
+      <AppCommonFormGroup id="education" v-slot="attrs" class="col-span-2">
         <header class="flex flex-col space-y-1">
           <h5 class="font-bold text-xl text-app-black">Education</h5>
           <p class="text-app-label">
