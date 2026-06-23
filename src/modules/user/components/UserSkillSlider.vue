@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed, ref } from "vue";
-import { SkillLevelEnum } from "@/modules/user/enums/skil.enum";
+import { SkillLevelEnum } from "@/shared/enums/skillLevel.enum";
 
 export interface UserSkillSliderProps {
   disabled?: boolean;

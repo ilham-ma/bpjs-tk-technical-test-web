@@ -4,11 +4,12 @@ import AppBaseInputText from "@/components/base/AppBaseInputText.vue";
 import AppCommonFormGroup from "@/components/common/AppCommonFormGroup.vue";
 import IconAdd from "@/components/icon/IconAdd.vue";
 import UserSkillSlider from "./UserSkillSlider.vue";
-import { SkillLevelEnum } from "../enums/skil.enum";
+import { SkillLevelEnum } from "@/shared/enums/skillLevel.enum";
 import type { UserSkill } from "../interfaces/userSkill.interface.ts";
 
 export interface UserEducationFormProps {
   isError?: boolean;
+  isNotUsingLevel?: boolean;
   errorFor?: (index: number, field: string) => string;
 }
 
@@ -42,7 +43,9 @@ function clickAddButton() {
               {{ item.name }}
             </h6>
 
-            <p class="text-app-label">{{ item.level }}</p>
+            <p v-if="!props.isNotUsingLevel" class="text-app-label">
+              {{ item.level }}
+            </p>
           </span>
 
           <h6 v-else class="font-bold text-base text-app-black">

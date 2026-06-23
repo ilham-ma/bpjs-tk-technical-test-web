@@ -5,7 +5,6 @@ import AppBaseInputDate from "@/components/base/AppBaseInputDate.vue";
 import AppBaseInputText from "@/components/base/AppBaseInputText.vue";
 import AppCommonFormGroup from "@/components/common/AppCommonFormGroup.vue";
 import IconAdd from "@/components/icon/IconAdd.vue";
-import type { Education } from "@/shared/types/education.type";
 import dayjs from "dayjs";
 import type { UserEducation } from "../interfaces/userEducation.interface";
 
